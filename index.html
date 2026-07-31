@@ -98,7 +98,11 @@
     }
 
     async function startCall() {
-      myName = $('name-input').value.trim() || 'زائر';
+      myName = $('name-input').value.trim();
+      if (!myName) {
+        alert('اكتب اسمك في خانة "اسمك" أولاً');
+        return false;
+      }
       const useNoise = $('noise-supp').checked;
       try {
         localStream = await navigator.mediaDevices.getUserMedia({
@@ -268,9 +272,14 @@
       }
     }
 
-    document.addEventListener('click', () => {
+    const audioEls = [];
+    function playAllAudio() {
       if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-    });
+      audioEls.forEach(el => { if (el.paused) el.play().catch(() => {}); });
+    }
+    document.addEventListener('click', playAllAudio);
+    document.addEventListener('touchstart', playAllAudio);
+    document.addEventListener('keydown', playAllAudio);
 
     function addAudio(id, stream) {
       const el = document.createElement('audio');
@@ -278,7 +287,8 @@
       el.playsInline = true;
       el.srcObject = stream;
       document.body.appendChild(el);
-      el.play().catch(() => {});
+      el.play().catch(() => { $('status-text').textContent = 'الصوت وصل — المس الشاشة لتشغيله'; });
+      audioEls.push(el);
       if (conns[id]) conns[id].audioEl = el;
 
       if (audioCtx) {
@@ -326,6 +336,8 @@
         if (c.audioEl) {
           c.audioEl.srcObject = null;
           c.audioEl.remove();
+          const i = audioEls.indexOf(c.audioEl);
+          if (i > -1) audioEls.splice(i, 1);
         }
         delete conns[id];
       }
