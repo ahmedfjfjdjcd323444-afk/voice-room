@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>غرفة صوتية - WebRTC</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Segoe UI", Tahoma, sans-serif; }
+  body { background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 16px; color: #fff; }
+  .card { background: rgba(255,255,255,0.08); backdrop-filter: blur(8px); border-radius: 16px; padding: 28px; width: 100%; max-width: 420px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+  h1 { text-align: center; font-size: 22px; margin-bottom: 20px; }
+  .group { margin-bottom: 16px; }
+  label { display: block; font-size: 13px; opacity: 0.8; margin-bottom: 6px; }
+  input { width: 100%; padding: 12px 14px; border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; background: rgba(0,0,0,0.3); color: #fff; font-size: 15px; outline: none; }
+  input:focus { border-color: #4fc3f7; }
+  button { width: 100%; padding: 13px; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+  .btn-primary { background: #4fc3f7; color: #0f2027; }
+  .btn-primary:hover { background: #81d4fa; }
+  .btn-danger { background: #ef5350; color: #fff; }
+  .btn-danger:hover { background: #e57373; }
+  .btn-warn { background: #ffb74d; color: #0f2027; }
+  .btn-warn:hover { background: #ffcc80; }
+  .divider { display: flex; align-items: center; margin: 18px 0; color: rgba(255,255,255,0.5); font-size: 13px; }
+  .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,0.2); }
+  .divider span { padding: 0 10px; }
+  .row { display: flex; gap: 10px; }
+  .row button { flex: 1; }
+  .hidden { display: none !important; }
+  #room-code { font-size: 34px; text-align: center; letter-spacing: 6px; font-weight: bold; color: #81d4fa; background: rgba(0,0,0,0.35); padding: 12px; border-radius: 12px; margin-bottom: 16px; }
+  .status { text-align: center; font-size: 13px; opacity: 0.7; margin-bottom: 12px; min-height: 18px; }
+  .members { margin-top: 16px; max-height: 180px; overflow-y: auto; }
+  .member { background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: 8px; margin-bottom: 6px; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #66bb6a; }
+  .muted-dot { background: #ef5350; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>🔊 غرفة صوتية</h1>
+
+    <div id="screen-join">
+      <div class="group">
+        <label>اسمك</label>
+        <input id="name-input" type="text" placeholder="أدخل اسمك..." maxlength="30">
+      </div>
+      <div class="group">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; opacity:1;">
+          <input id="noise-supp" type="checkbox"> تنقية الضوضاء (للأماكن البعيدة)
+        </label>
+      </div>
+      <button class="btn-primary" onclick="createRoom()">➕ إنشاء غرفة</button>
+      <div class="divider"><span>أو</span></div>
+      <div class="group">
+        <label>كود الغرفة</label>
+        <input id="code-input" type="text" placeholder="0000" maxlength="6" style="text-align:center; letter-spacing:4px; font-size:22px;">
+      </div>
+      <button class="btn-primary" onclick="joinRoom()">📞 إنضمام</button>
+    </div>
+
+    <div id="screen-call" class="hidden">
+      <div id="room-code" onclick="copyCode()" style="cursor:pointer;" title="اضغط للنسخ">0000 <span style="font-size:14px; letter-spacing:0;">📋</span></div>
+      <div class="status" id="status-text">جاري التحميل...</div>
+      <div class="status" id="count-text" style="opacity:0.6;"></div>
+      <div class="row">
+        <button class="btn-warn" id="mute-btn" onclick="toggleMute()">🔇 كتم الصوت</button>
+        <button class="btn-danger" onclick="leaveRoom()">📵 مغادرة</button>
+      </div>
+      <div class="group" style="margin-top:16px;">
+        <label>تضخيم الصوت: <span id="gain-val" style="color:#ffb74d; font-weight:bold;">0</span> dB</label>
+        <input id="gain-slider" type="range" min="-20" max="30" step="0.5" value="0" oninput="setGain(this.value)" style="width:100%; accent-color:#ffb74d;">
+      </div>
+      <div class="members" id="members-list"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script>
+    let peer = null;
+    let localStream = null;
+    let roomCode = '';
+    let isHost = false;
+    let myName = '';
+    let conns = {};
+
+    const $ = id => document.getElementById(id);
+
+    let audioCtx = null;
+    let masterGain = null;
+
+    function ensureAudioCtx() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = 1;
+        masterGain.connect(audioCtx.destination);
+      }
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    async function startCall() {
+      myName = $('name-input').value.trim() || 'زائر';
+      const useNoise = $('noise-supp').checked;
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: useNoise, autoGainControl: useNoise }
+        });
+      } catch (e) {
+        alert('ماكو مايك أو ممنوع الوصول للميكروفون!');
+        return false;
+      }
+      ensureAudioCtx();
+      return true;
+    }
+
+    const RTC_CONFIG = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443'], username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turns:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }
+      ]
+    };
+
+    function makePeer(code, isJoin) {
+      const id = isHost ? 'room-' + code : 'p-' + Math.random().toString(36).slice(2, 10);
+      peer = new Peer(id, { debug: 0, config: RTC_CONFIG });
+      peer.on('open', onPeerOpen);
+      peer.on('connection', handleIncomingConn);
+      peer.on('call', handleIncomingCall);
+      peer.on('error', err => {
+        if (err.type === 'unavailable-id' && isHost) {
+          roomCode = String(Math.floor(1000 + Math.random() * 9000));
+          $('status-text').textContent = 'الكود مستخدم، غيّرناه تلقائياً إلى ' + roomCode;
+          const oldId = id;
+          try { peer.destroy(); } catch (e) {}
+          makePeer(roomCode, false);
+          peer.on('open', () => {
+            $('room-code').innerHTML = roomCode + ' <span style="font-size:14px; letter-spacing:0;">📋</span>';
+          });
+        } else if (err.type === 'peer-unavailable') {
+          $('status-text').textContent = 'ماكو غرفة بهذا الكود، جرّب مرة ثانية...';
+          retryJoin();
+        } else {
+          console.error(err);
+        }
+      });
+    }
+
+    function onPeerOpen(id) {
+      joinRetries = 0;
+      if (isHost) {
+        roomCode = id.replace('room-', '');
+        $('room-code').innerHTML = roomCode + ' <span style="font-size:14px; letter-spacing:0;">📋</span>';
+        $('status-text').textContent = 'الغرفة جاهزة! شارك الكود مع أصدقائك';      } else {
+        $('status-text').textContent = 'جاري الإتصال بالغرفة...';
+        const data = peer.connect('room-' + roomCode, { reliable: true });
+        conns['room-' + roomCode] = { data, media: null, name: 'صاحب الغرفة' };
+        data.on('open', () => { clearTimeout(joinTimer); sendName(data); });
+        data.on('data', msg => handleMessage(data, msg));
+        data.on('close', () => removeMember(data.peer));
+        const media = peer.call('room-' + roomCode, localStream);
+        media.on('stream', stream => addAudio('room-' + roomCode, stream));
+        media.on('close', () => removeMember('room-' + roomCode));
+        conns['room-' + roomCode].media = media;
+        joinTimer = setTimeout(() => {
+          if (!data.open) {
+            $('status-text').textContent = 'الاتصال بطيء، نحاول مرة ثانية...';
+            retryJoin();
+          }
+        }, 15000);
+      }
+      showScreen('call');
+    }
+
+    async function createRoom() {
+      ensureAudioCtx();
+      if (!(await startCall())) return;
+      isHost = true;
+      roomCode = String(Math.floor(1000 + Math.random() * 9000));
+      makePeer(roomCode, false);
+    }
+
+    async function joinRoom() {
+      ensureAudioCtx();
+      roomCode = $('code-input').value.trim();
+      if (roomCode.length < 4) { alert('دخل كود الغرفة'); return; }
+      if (!(await startCall())) return;
+      isHost = false;
+      makePeer(roomCode, true);
+    }
+
+    let joinRetries = 0;
+    let joinTimer = null;
+    function retryJoin() {
+      clearTimeout(joinTimer);
+      joinRetries++;
+      if (joinRetries > 3) {
+        joinRetries = 0;
+        alert('ماكو غرفة بهذا الكود! تأكد من الكود');
+        leaveRoom();
+        return;
+      }
+      setTimeout(() => {
+        conns = {};
+        if (!peer || peer.destroyed) {
+          makePeer(roomCode, true);
+        } else {
+          peer.destroy();
+          makePeer(roomCode, true);
+        }
+      }, 1500);
+    }
+
+    function handleIncomingConn(conn) {
+      if (!conns[conn.peer]) conns[conn.peer] = { data: conn, media: null, name: 'زائر' };
+      conns[conn.peer].data = conn;
+      conn.on('data', msg => handleMessage(conn, msg));
+      conn.on('close', () => removeMember(conn.peer));
+      conn.on('open', () => {
+        clearTimeout(joinTimer);
+        if (isHost) {
+          const members = Object.keys(conns).filter(id => id !== conn.peer);
+          conn.send({ type: 'init', members, myName });
+          $('status-text').textContent = 'شخص دخل الغرفة! الأعضاء: ' + (Object.keys(conns).length + 1);
+        }
+      });
+    }
+
+    function handleIncomingCall(call) {
+      if (!conns[call.peer]) conns[call.peer] = { data: null, media: null, name: 'زائر' };
+      conns[call.peer].media = call;
+      call.answer(localStream);
+      call.on('stream', stream => addAudio(call.peer, stream));
+      call.on('close', () => removeMember(call.peer));
+    }
+
+    function connectTo(id) {
+      if (conns[id] || !peer || id === peer.id) return;
+      const conn = { data: null, media: null, name: id };
+      conns[id] = conn;
+      const data = peer.connect(id, { reliable: true });
+      data.on('open', () => sendName(data));
+      data.on('data', msg => handleMessage(data, msg));
+      data.on('close', () => removeMember(id));
+      conn.data = data;
+      const media = peer.call(id, localStream);
+      media.on('stream', stream => addAudio(id, stream));
+      media.on('close', () => removeMember(id));
+      conn.media = media;
+    }
+
+    function sendName(data) {
+      data.send({ type: 'name', name: myName });
+    }
+
+    function handleMessage(data, msg) {
+      if (!msg) return;
+      const id = data.peer;
+      if (msg.type === 'init' && !isHost) {
+        if (!conns[id]) conns[id] = { data, media: null, name: msg.myName || 'صاحب الغرفة' };
+        if (msg.myName) conns[id].name = msg.myName;
+        if (msg.members) msg.members.forEach(connectTo);
+        renderMembers();
+      } else if (msg.type === 'name') {
+        if (!conns[id]) conns[id] = { data, media: null, name: msg.name };
+        conns[id].name = msg.name;
+        renderMembers();
+      }
+    }
+
+    document.addEventListener('click', () => {
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    });
+
+    function addAudio(id, stream) {
+      const el = document.createElement('audio');
+      el.autoplay = true;
+      el.playsInline = true;
+      el.srcObject = stream;
+      document.body.appendChild(el);
+      el.play().catch(() => {});
+      if (conns[id]) conns[id].audioEl = el;
+
+      if (audioCtx) {
+        let tries = 0;
+        const route = () => {
+          if (audioCtx.state === 'running') {
+            try {
+              const src = audioCtx.createMediaElementSource(el);
+              const g = audioCtx.createGain();
+              g.gain.value = 1;
+              src.connect(g);
+              g.connect(masterGain);
+              if (conns[id]) conns[id].mediaNode = g;
+              $('status-text').textContent = 'الصوت متصل ✔ (تضخيم مفعّل)';
+              return;
+            } catch (e) {
+              if (conns[id]) conns[id].mediaNode = null;
+            }
+          }
+          if (tries++ < 15) {
+            audioCtx.resume().then(() => setTimeout(route, 300)).catch(() => setTimeout(route, 300));
+          }
+        };
+        audioCtx.resume().then(route).catch(route);
+      }
+      $('status-text').textContent = 'الصوت متصل ✔';
+      renderMembers();
+    }
+
+    function setGain(db) {
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      const v = Math.pow(10, parseFloat(db) / 20);
+      if (masterGain) masterGain.gain.value = v;
+      $('gain-val').textContent = db;
+    }
+
+    function removeMember(id) {
+      const c = conns[id];
+      if (c) {
+        try { c.data && c.data.close(); } catch (e) {}
+        try { c.media && c.media.close(); } catch (e) {}
+        if (c.mediaNode) {
+          try { c.mediaNode.disconnect(); } catch (e) {}
+        }
+        if (c.audioEl) {
+          c.audioEl.srcObject = null;
+          c.audioEl.remove();
+        }
+        delete conns[id];
+      }
+      renderMembers();
+    }
+
+    function renderMembers() {
+      const list = $('members-list');
+      list.innerHTML = '';
+      list.appendChild(memberRow(myName + ' (أنت)', true, false));
+      Object.keys(conns).forEach(id => {
+        const c = conns[id];
+        list.appendChild(memberRow(c.name, false, c.muted));
+      });
+      $('count-text').textContent = 'الأعضاء: ' + (Object.keys(conns).length + 1) + ' / 12';
+    }
+
+    function copyCode() {
+      const text = roomCode;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(() => flashCopy());
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        flashCopy();
+      }
+    }
+
+    function flashCopy() {
+      const el = $('room-code');
+      el.innerHTML = '✔ تم النسخ!';
+      setTimeout(() => {
+        el.innerHTML = roomCode + ' <span style="font-size:14px; letter-spacing:0;">📋</span>';
+      }, 1200);
+    }
+
+    function memberRow(name, me, muted) {
+      const div = document.createElement('div');
+      div.className = 'member';
+      const span = document.createElement('span');
+      span.textContent = name;
+      const dot = document.createElement('div');
+      dot.className = 'dot' + (muted ? ' muted-dot' : '');
+      div.appendChild(span);
+      div.appendChild(dot);
+      return div;
+    }
+
+    function toggleMute() {
+      if (!localStream) return;
+      const btn = $('mute-btn');
+      const muted = localStream.getAudioTracks().some(t => !t.enabled);
+      localStream.getAudioTracks().forEach(t => t.enabled = muted);
+      btn.textContent = muted ? '🔇 كتم الصوت' : '🔊 الغاء الكتم';
+      Object.keys(conns).forEach(id => {
+        if (conns[id]) conns[id].muted = !muted;
+      });
+      renderMembers();
+    }
+
+    function leaveRoom() {
+      Object.keys(conns).forEach(removeMember);
+      if (peer) { try { peer.destroy(); } catch (e) {} peer = null; }
+      if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+      isHost = false;
+      roomCode = '';
+      $('name-input').value = '';
+      $('code-input').value = '';
+      showScreen('join');
+    }
+
+    function showScreen(name) {
+      $('screen-join').classList.toggle('hidden', name !== 'join');
+      $('screen-call').classList.toggle('hidden', name !== 'call');
+    }
+
+    window.addEventListener('beforeunload', () => {
+      Object.keys(conns).forEach(removeMember);
+      if (peer) peer.destroy();
+      if (localStream) localStream.getTracks().forEach(t => t.stop());
+    });
+  </script>
+</body>
+</html>
