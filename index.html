@@ -207,23 +207,32 @@
         $('room-code').innerHTML = roomCode + ' <span style="font-size:14px; letter-spacing:0;">📋</span>';
         $('status-text').textContent = 'الغرفة جاهزة! شارك الكود مع أصدقائك';      } else {
         $('status-text').textContent = 'جاري الإتصال بالغرفة...';
-        const data = peer.connect('room-' + roomCode, { reliable: true });
-        conns['room-' + roomCode] = { data, media: null, name: 'صاحب الغرفة' };
-        data.on('open', () => { clearTimeout(joinTimer); sendName(data); });
-        data.on('data', msg => handleMessage(data, msg));
-        data.on('close', () => removeMember(data.peer));
-        const media = peer.call('room-' + roomCode, sendStream);
-        media.on('stream', stream => addAudio('room-' + roomCode, stream));
-        media.on('close', () => removeMember('room-' + roomCode));
-        conns['room-' + roomCode].media = media;
-        joinTimer = setTimeout(() => {
-          if (!data.open) {
-            $('status-text').textContent = 'الاتصال بطيء، نحاول مرة ثانية...';
-            retryJoin();
-          }
-        }, 15000);
+        connectToHost();
       }
       showScreen('call');
+    }
+
+    function connectToHost() {
+      const old = conns['room-' + roomCode];
+      if (old) {
+        try { old.data && old.data.close(); } catch (e) {}
+        try { old.media && old.media.close(); } catch (e) {}
+      }
+      const data = peer.connect('room-' + roomCode, { reliable: true });
+      conns['room-' + roomCode] = { data, media: null, name: 'صاحب الغرفة' };
+      data.on('open', () => { clearTimeout(joinTimer); sendName(data); });
+      data.on('data', msg => handleMessage(data, msg));
+      data.on('close', () => removeMember(data.peer));
+      const media = peer.call('room-' + roomCode, sendStream);
+      media.on('stream', stream => addAudio('room-' + roomCode, stream));
+      media.on('close', () => removeMember('room-' + roomCode));
+      conns['room-' + roomCode].media = media;
+      joinTimer = setTimeout(() => {
+        if (!data.open) {
+          $('status-text').textContent = 'الاتصال بطيء، نحاول مرة ثانية...';
+          retryJoin();
+        }
+      }, 25000);
     }
 
     async function createRoom() {
@@ -255,13 +264,8 @@
         return;
       }
       setTimeout(() => {
-        conns = {};
-        if (!peer || peer.destroyed) {
-          makePeer(roomCode, true);
-        } else {
-          peer.destroy();
-          makePeer(roomCode, true);
-        }
+        $('status-text').textContent = 'جاري الإتصال... (محاولة ' + joinRetries + ')';
+        connectToHost();
       }, 1500);
     }
 
