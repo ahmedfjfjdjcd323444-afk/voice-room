@@ -36,7 +36,7 @@
 </head>
 <body>
   <div class="card">
-    <h1>🔊 غرفة صوتية</h1>
+    <h1>🔊 غرفة صوتية (اعتماد كلي على Relay)</h1>
 
     <div id="screen-join">
       <div class="group">
@@ -168,11 +168,17 @@
 
     const RTC_CONFIG = {
       iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443'], username: 'openrelayproject', credential: 'openrelayproject' },
-        { urls: 'turns:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }
-      ]
+        { 
+          urls: [
+            'turn:openrelay.metered.ca:80', 
+            'turn:openrelay.metered.ca:443', 
+            'turns:openrelay.metered.ca:443'
+          ], 
+          username: 'openrelayproject', 
+          credential: 'openrelayproject' 
+        }
+      ],
+      iceTransportPolicy: 'relay'
     };
 
     function makePeer(code, isJoin) {
@@ -185,7 +191,6 @@
         if (err.type === 'unavailable-id' && isHost) {
           roomCode = String(Math.floor(1000 + Math.random() * 9000));
           $('status-text').textContent = 'الكود مستخدم، غيّرناه تلقائياً إلى ' + roomCode;
-          const oldId = id;
           try { peer.destroy(); } catch (e) {}
           makePeer(roomCode, false);
           peer.on('open', () => {
@@ -205,7 +210,8 @@
       if (isHost) {
         roomCode = id.replace('room-', '');
         $('room-code').innerHTML = roomCode + ' <span style="font-size:14px; letter-spacing:0;">📋</span>';
-        $('status-text').textContent = 'الغرفة جاهزة! شارك الكود مع أصدقائك';      } else {
+        $('status-text').textContent = 'الغرفة جاهزة! شارك الكود مع أصدقائك';
+      } else {
         $('status-text').textContent = 'جاري الإتصال بالغرفة...';
         connectToHost();
       }
