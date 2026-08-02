@@ -4,21 +4,33 @@
     <meta charset="UTF-8">
     <title>سيرفري السري</title>
     <style>
-        body { background: #0f172a; color: #fff; font-family: Tahoma, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #1e293b; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; width: 300px; }
+        body { background: #0f172a; color: #fff; font-family: Tahoma, sans-serif; margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; }
+        .card { background: #1e293b; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; width: 320px; transition: 0.3s; }
         input { width: 100%; padding: 12px; font-size: 18px; margin-bottom: 20px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #fff; text-align: center; box-sizing: border-box; }
         button { width: 100%; padding: 12px; font-size: 18px; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
         button:hover { background: #1d4ed8; }
+        
+        /* تنسيق شاشة الاتصال المخفية بالبداية */
+        #callContainer { display: none; width: 100vw; height: 100vh; position: fixed; top: 0; left: 0; background: #000; z-index: 999; }
+        iframe { width: 100%; height: 100%; border: none; }
+        .back-btn { position: absolute; top: 15px; left: 15px; background: #ef4444; color: #fff; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; z-index: 1000; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div class="card">
+    <!-- واجهة إدخال الكود -->
+    <div class="card" id="loginBox">
         <h2>سيرفر الاتصال الخاص</h2>
         <p style="color: #94a3b8; font-size: 14px; margin-bottom: 20px;">حط الكود وخلي ربعك يدخلون وياك</p>
         
         <input type="text" id="roomCode" placeholder="اكتب الكود هنا (مثلا: 123)">
         <button onclick="connectServer()">اتصال بالسيرفر</button>
+    </div>
+
+    <!-- شاشة الاتصال المخفية (تطلع جوه موقعك) -->
+    <div id="callContainer">
+        <button class="back-btn" onclick="leaveCall()">مغادرة الاتصال</button>
+        <iframe id="jitsiFrame" src=""></iframe>
     </div>
 
     <script>
@@ -29,11 +41,22 @@
                 return;
             }
             
-            // الرابط السري اللي يربطهم بسيرفرك الوهمي
+            // رابط الغرفة المخفية
             let mySecretServer = "https://meet.jit.si/AhmedAbdullah-Private-Server-" + code;
             
-            // فتح الاتصال الفوري
-            window.location.href = mySecretServer;
+            // ربط الإطار بالرابط
+            document.getElementById('jitsiFrame').src = mySecretServer;
+            
+            // إخفاء واجهة الكود وإظهار شاشة الاتصال بداخل صفحتك
+            document.getElementById('loginBox').style.display = 'none';
+            document.getElementById('callContainer').style.display = 'block';
+        }
+
+        function leaveCall() {
+            // إيقاف الاتصال وإرجاع الواجهة الرئيسية
+            document.getElementById('jitsiFrame').src = "";
+            document.getElementById('callContainer').style.display = 'none';
+            document.getElementById('loginBox').style.display = 'block';
         }
     </script>
 
