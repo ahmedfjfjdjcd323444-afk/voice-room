@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>سيرفري السري المطور</title>
+    <title>سيرفري السري المخفي</title>
     <style>
         body { background: #0f172a; color: #fff; font-family: Tahoma, sans-serif; margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; }
         .card { background: #1e293b; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); text-align: center; width: 320px; border: 2px solid #3b82f6; }
@@ -10,7 +10,7 @@
         button { width: 100%; padding: 12px; font-size: 18px; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
         button:hover { background: #1d4ed8; }
         
-        /* واجهة الاتصال الخاصة بك بالكامل */
+        /* واجهة الاتصال الخاصة بك */
         #callScreen { display: none; width: 100vw; height: 100vh; position: fixed; top: 0; left: 0; background: #0f172a; flex-direction: column; justify-content: center; align-items: center; z-index: 999; }
         .call-box { background: #1e293b; padding: 30px; border-radius: 15px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.7); width: 350px; }
         .status { font-size: 20px; margin-bottom: 20px; color: #4ade80; font-weight: bold; }
@@ -18,37 +18,48 @@
         .mute-btn { background: #eab308; color: #000; margin-bottom: 10px; }
         .hangup-btn { background: #ef4444; color: #fff; }
         
-        /* إخفاء عناصر جيتسي الصوتية بالكامل */
-        #jitsiContainer { width: 0px; height: 0px; overflow: hidden; position: absolute; top: -9999px; }
+        /* إخفاء تام وسحق لأي عنصر أو شعار يخص جيتسي بالـ CSS */
+        #jitsiContainer {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            top: -9999px;
+            left: -9999px;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            overflow: hidden;
+        }
     </style>
 </head>
 <body>
 
-    <!-- واجهة الدخول -->
+    <!-- واجهة الدخول الخاصة بك -->
     <div class="card" id="loginBox">
-        <h2>سيرفر الاتصال المطور</h2>
-        <span style="background: #3b82f6; color: #fff; padding: 3px 10px; font-size: 12px; border-radius: 20px; display: inline-block; margin-bottom: 15px;">الإصدار المخفي v2.0</span>
-        <p style="color: #94a3b8; font-size: 13px; margin-bottom: 15px;">اكتب اسمك ورقم الغرفة واتصل بصوت صافي</p>
+        <h2>سيرفر الاتصال الخاص</h2>
+        <span style="background: #10b981; color: #fff; padding: 3px 10px; font-size: 12px; border-radius: 20px; display: inline-block; margin-bottom: 15px;">وضع التخفي التام v3.0</span>
+        <p style="color: #94a3b8; font-size: 13px; margin-bottom: 15px;">اكتب اسمك ورقم الغرفة واتصل بصوت نقي</p>
         
         <input type="text" id="userName" placeholder="اسمك الكريم">
         <input type="text" id="roomCode" placeholder="رقم الغرفة (مثلا: 9988)">
-        <button onclick="startCall()">تشغيل السيرفر والصوت</button>
+        <button onclick="startCall()">تشغيل الاتصال الصوتي</button>
     </div>
 
-    <!-- واجهتك الخاصة بالاتصال -->
+    <!-- واجهة المكالمة المصممة خصيصاً لك -->
     <div id="callScreen">
         <div class="call-box">
-            <h2>الغرفة المشفرة تعمل</h2>
-            <div class="status" id="callStatus">متصل بالشبكة...</div>
+            <h2>الغرفة الصوتية نشطة</h2>
+            <div class="status" id="callStatus">متصل وجاري التحدث...</div>
             <p id="displayNameView" style="color: #94a3b8; margin-bottom: 20px;"></p>
             
             <button class="control-btn mute-btn" onclick="toggleMute()">كتم / إلغاء الكتم</button>
             <button class="control-btn hangup-btn" onclick="endCall()">مغادرة المكالمة</button>
         </div>
-        <!-- صندوق جيتسي الخفي -->
+        <!-- صندوق جيتسي المخفي تماماً بالخلفية -->
         <div id="jitsiContainer"></div>
     </div>
 
+    <!-- استدعاء المكتبة وتشغيل السيرفر -->
     <script src="https://meet.jit.si/external_api.js"></script>
     <script>
         let api = null;
@@ -68,18 +79,21 @@
 
             const domain = "meet.jit.si";
             const options = {
-                roomName: "AhmedAbdullah-Private-Engine-" + code,
+                roomName: "AhmedAbdullah-Stealth-Server-" + code,
                 width: "100%",
                 height: "100%",
                 parentNode: document.querySelector('#jitsiContainer'),
                 userInfo: { displayName: name },
                 configOverwrite: {
                     startWithAudioMuted: false,
-                    startWithVideoMuted: true
+                    startWithVideoMuted: true // إغلاق الكاميرا إجبارياً
                 },
                 interfaceConfigOverwrite: {
                     TOOLBAR_BUTTONS: [],
-                    filmStripOnly: true
+                    filmStripOnly: true,
+                    SHOW_JITSI_WATERMARK: false,
+                    SHOW_BRANDING_WATERMARK: false,
+                    BRAND_WATERMARK_LINK: ''
                 }
             };
 
