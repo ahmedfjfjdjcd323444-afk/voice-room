@@ -9,7 +9,7 @@
         input { width: 100%; padding: 12px; font-size: 16px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #fff; text-align: center; box-sizing: border-box; }
         button { width: 100%; padding: 12px; font-size: 16px; background: #2563eb; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-bottom: 10px; }
         button:hover { background: #1d4ed8; }
-        .create-btn { background: #10b981; margin-bottom: 0; }
+        .create-btn { background: #10b981; }
         .create-btn:hover { background: #059669; }
         
         /* واجهة الاتصال */
@@ -22,30 +22,18 @@
         
         /* صندوق جيتسي الخفي */
         #jitsiContainer { position: absolute; width: 1px; height: 1px; top: -9999px; left: -9999px; opacity: 0; visibility: hidden; pointer-events: none; }
-        .room-display { background: #0f172a; padding: 8px; border-radius: 5px; color: #38bdf8; font-family: monospace; font-size: 18px; margin-bottom: 15px; letter-spacing: 2px; }
-        .divider { margin: 15px 0; border-top: 1px solid #334155; position: relative; text-align: center; }
-        .divider span { background: #1e293b; padding: 0 10px; color: #64748b; font-size: 12px; position: relative; top: -10px; }
+        .link-box { background: #0f172a; padding: 10px; border-radius: 6px; color: #38bdf8; font-size: 13px; margin-bottom: 15px; word-break: break-all; border: 1px dashed #475569; }
     </style>
 </head>
 <body>
 
-    <!-- واجهة الدخول الرئيسية -->
+    <!-- واجهة الدخول -->
     <div class="card" id="loginBox">
         <h2>نظام الاتصال المخصص</h2>
-        <span style="background: #8b5cf6; color: #fff; padding: 3px 10px; font-size: 12px; border-radius: 20px; display: inline-block; margin-bottom: 15px;">الإصدار الذكي v4.1</span>
+        <span style="background: #8b5cf6; color: #fff; padding: 3px 10px; font-size: 12px; border-radius: 20px; display: inline-block; margin-bottom: 20px;">الإصدار الأنيق v5.0</span>
         
-        <!-- خانة الاسم الموحدة -->
-        <p style="color: #94a3b8; font-size: 12px; margin-bottom: 8px; text-align: right;">اكتب اسمك أولاً:</p>
-        <input type="text" id="globalName" placeholder="اسمك الكريم">
-
-        <!-- زر إنشاء غرفة -->
-        <button class="create-btn" onclick="createRoom()">إنشاء غرفة جديدة</button>
-
-        <div class="divider"><span>أو الانضمام لغرفة</span></div>
-
-        <!-- خانة الانضمام برمز -->
-        <input type="text" id="joinRoomCode" placeholder="الصق كود الغرفة هنا">
-        <button onclick="joinRoom()">انضمام إلى الغرفة</button>
+        <input type="text" id="userName" placeholder="اكتب اسمك الكريم...">
+        <button class="create-btn" onclick="startApp()">دخول / إنشاء الغرفة</button>
     </div>
 
     <!-- واجهة المكالمة -->
@@ -53,9 +41,9 @@
         <div class="call-box">
             <h2>غرفة الاتصال النشطة</h2>
             <div class="status" id="callStatus">متصل بالصوت...</div>
-            <p style="color: #94a3b8; font-size: 12px; margin-bottom: 5px;">كود الغرفة الحالي:</p>
-            <div class="room-display" id="activeRoomCode">----</div>
-            <p id="displayNameView" style="color: #94a3b8; margin-bottom: 15px;"></p>
+            
+            <p style="color: #94a3b8; font-size: 12px; margin-bottom: 5px;">رابط الغرفة (انسخه وادزه لصديقك):</p>
+            <div class="link-box" id="roomLinkView">جارٍ توليد الرابط...</div>
             
             <button class="control-btn mute-btn" onclick="toggleMute()">كتم / إلغاء الكتم</button>
             <button class="control-btn hangup-btn" onclick="endCall()">مغادرة المكالمة</button>
@@ -67,40 +55,43 @@
     <script>
         let api = null;
 
-        function generateRoomCode() {
-            return Math.floor(10000 + Math.random() * 90000).toString();
-        }
+        // التحقق التلقائي لو الشخص دخل عن طريق رابط مشاركة جاهز
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('room')) {
+                // إذا اكو رابط جاهز، نخفي زر الإنشاء ونطلب الاسم فقط لتسريع الدخول
+                document.querySelector('.card h2').innerText = "انضمام إلى غرفة";
+                document.querySelector('.create-btn').innerText = "انضمام مباشر";
+            }
+        };
 
-        function createRoom() {
-            let name = document.getElementById('globalName').value.trim();
+        function startApp() {
+            let name = document.getElementById('userName').value.trim();
             if (!name) {
                 alert("يرجى كتابة اسمك أولاً!");
                 return;
             }
-            let roomCode = generateRoomCode();
-            startCallSession(name, roomCode);
-        }
 
-        function joinRoom() {
-            let name = document.getElementById('globalName').value.trim();
-            let roomCode = document.getElementById('joinRoomCode').value.trim();
-            
-            if (!name || !roomCode) {
-                alert("يرجى كتابة اسمك وكود الغرفة أولاً!");
-                return;
+            const urlParams = new URLSearchParams(window.location.search);
+            let roomCode = urlParams.get('room');
+
+            // إذا ماكو غرفة بالرابط، ننشئ وحدة جديدة ونحدث شريط العنوان (URL) تلقائياً
+            if (!roomCode) {
+                roomCode = Math.floor(100000 + Math.random() * 900000).toString();
+                const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + roomCode;
+                window.history.pushState({path: newUrl}, '', newUrl);
             }
-            startCallSession(name, roomCode);
-        }
 
-        function startCallSession(name, roomCode) {
+            // عرض رابط الغرفة الحالي بالصندوق حتى ينسخه بكل سهولة
+            document.getElementById('roomLinkView').innerText = window.location.href;
+
+            // إخفاء صفحة الدخول وتشغيل المكالمة
             document.getElementById('loginBox').style.display = 'none';
             document.getElementById('callScreen').style.display = 'flex';
-            document.getElementById('displayNameView').innerText = "المستخدم: " + name;
-            document.getElementById('activeRoomCode').innerText = roomCode;
 
             const domain = "meet.jit.si";
             const options = {
-                roomName: "AhmedAbdullah-SmartEngine-" + roomCode,
+                roomName: "AhmedAbdullah-ProRoom-" + roomCode,
                 width: "100%",
                 height: "100%",
                 parentNode: document.querySelector('#jitsiContainer'),
@@ -130,8 +121,8 @@
             if (api) {
                 api.dispose();
             }
-            document.getElementById('callScreen').style.display = 'none';
-            document.getElementById('loginBox').style.display = 'flex';
+            // مسح الرابط وإعادة التوجيه للبداية
+            window.location.href = window.location.pathname;
         }
     </script>
 
