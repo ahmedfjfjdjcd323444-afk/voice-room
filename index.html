@@ -12,7 +12,7 @@
         .create-btn { background: #10b981; }
         .create-btn:hover { background: #059669; }
         
-        /* حاوية الاتصال تملء الشاشة بالكامل وتخفي كل شي خلفها */
+        /* واجهة الاتصال */
         #callScreen { display: none; width: 100vw; height: 100vh; position: fixed; top: 0; left: 0; background: #0f172a; z-index: 999; }
         #jitsiContainer { width: 100%; height: 100%; }
     </style>
@@ -22,13 +22,13 @@
     <!-- واجهة الدخول -->
     <div class="card" id="loginBox">
         <h2>نظام الاتصال المخصص</h2>
-        <span style="background: #8b5cf6; color: #fff; padding: 3px 10px; font-size: 12px; border-radius: 20px; display: inline-block; margin-bottom: 20px;">الإصدار المباشر v7.0</span>
+        <span style="background: #8b5cf6; color: #fff; padding: 3px 10px; font-size: 12px; border-radius: 20px; display: inline-block; margin-bottom: 20px;">الإصدار النظيف v7.1</span>
         
         <input type="text" id="userName" placeholder="اكتب اسمك الكريم...">
         <button class="create-btn" onclick="startApp()">دخول / إنشاء الغرفة</button>
     </div>
 
-    <!-- واجهة الاتصال الحقيقية والكاملة -->
+    <!-- واجهة الاتصال -->
     <div id="callScreen">
         <div id="jitsiContainer"></div>
     </div>
@@ -55,32 +55,30 @@
             const urlParams = new URLSearchParams(window.location.search);
             let roomCode = urlParams.get('room');
 
-            // إذا ماكو غرفة بالرابط، نولد وحدة ونحدث شريط العنوان (URL) بدون إعادة تحميل
             if (!roomCode) {
                 roomCode = Math.floor(100000 + Math.random() * 900000).toString();
                 const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + roomCode;
                 window.history.pushState({path: newUrl}, '', newUrl);
             }
 
-            // إخفاء كارت الدخول وإظهار شاشة الاتصال بالكامل
             document.getElementById('loginBox').style.display = 'none';
             document.getElementById('callScreen').style.display = 'block';
 
             const domain = "meet.jit.si";
             const options = {
-                roomName: "AhmedAbdullah-DirectRoom-" + roomCode,
+                roomName: "AhmedAbdullah-CleanRoom-" + roomCode,
                 width: "100%",
                 height: "100%",
                 parentNode: document.querySelector('#jitsiContainer'),
                 userInfo: { displayName: name },
                 configOverwrite: {
                     startWithAudioMuted: false,
-                    startWithVideoMuted: true // الصوت فقط شغال والفيديو مغلق كافتراضي للاستقرار
+                    startWithVideoMuted: true
                 },
                 interfaceConfigOverwrite: {
-                    // إبقاء أزرار التحكم الأساسية (الكتم، المغادرة) واضحة وحقيقية 100%
+                    // إبقاء زر الكتم وزر إنهاء المكالمة فقط، وإخفاء كل الباقي
                     TOOLBAR_BUTTONS: [
-                        'microphone', 'hangup', 'chat', 'settings'
+                        'microphone', 'hangup'
                     ],
                     SHOW_JITSI_WATERMARK: false,
                     SHOW_BRANDING_WATERMARK: false,
@@ -90,7 +88,6 @@
 
             api = new JitsiMeetExternalAPI(domain, options);
 
-            // إذا المستخدم ضغط زر المغادرة من داخل شاشة الاتصال، يرجع للبداية وينظف الرابط
             api.addEventListener('videoConferenceLeft', () => {
                 window.location.href = window.location.pathname;
             });
