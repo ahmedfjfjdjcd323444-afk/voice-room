@@ -12,23 +12,20 @@
         .create-btn { background: #10b981; }
         .create-btn:hover { background: #059669; }
         
-        /* واجهة الاتصال */
         #callScreen { display: none; width: 100vw; height: 100vh; position: fixed; top: 0; left: 0; background: #0f172a; z-index: 999; }
         #jitsiContainer { width: 100%; height: 100%; }
     </style>
 </head>
 <body>
 
-    <!-- واجهة الدخول -->
     <div class="card" id="loginBox">
         <h2>نظام الاتصال المخصص</h2>
-        <span style="background: #8b5cf6; color: #fff; padding: 3px 10px; font-size: 12px; border-radius: 20px; display: inline-block; margin-bottom: 20px;">الإصدار النظيف v7.1</span>
+        <span style="background: #8b5cf6; color: #fff; padding: 3px 10px; font-size: 12px; border-radius: 20px; display: inline-block; margin-bottom: 20px;">الإصدار المحترف v7.2</span>
         
         <input type="text" id="userName" placeholder="اكتب اسمك الكريم...">
         <button class="create-btn" onclick="startApp()">دخول / إنشاء الغرفة</button>
     </div>
 
-    <!-- واجهة الاتصال -->
     <div id="callScreen">
         <div id="jitsiContainer"></div>
     </div>
@@ -66,7 +63,7 @@
 
             const domain = "meet.jit.si";
             const options = {
-                roomName: "AhmedAbdullah-CleanRoom-" + roomCode,
+                roomName: "AhmedAbdullah-ProServer-" + roomCode,
                 width: "100%",
                 height: "100%",
                 parentNode: document.querySelector('#jitsiContainer'),
@@ -76,12 +73,13 @@
                     startWithVideoMuted: true
                 },
                 interfaceConfigOverwrite: {
-                    // إبقاء زر الكتم وزر إنهاء المكالمة فقط، وإخفاء كل الباقي
                     TOOLBAR_BUTTONS: [
                         'microphone', 'hangup'
                     ],
+                    // إخفاء كل شعارات العلامة التجارية والشعارات الخاصة بالمنصة تماماً
                     SHOW_JITSI_WATERMARK: false,
                     SHOW_BRANDING_WATERMARK: false,
+                    BRAND_WATERMARK_LINK: '',
                     DEFAULT_BACKGROUND: '#0f172a'
                 }
             };
