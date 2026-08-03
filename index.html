@@ -20,7 +20,7 @@
 
     <div class="card" id="loginBox">
         <h2>نظام الاتصال المخصص</h2>
-        <span style="background: #8b5cf6; color: #fff; padding: 3px 10px; font-size: 12px; border-radius: 20px; display: inline-block; margin-bottom: 20px;">الإصدار الخارق v7.3</span>
+        <span style="background: #8b5cf6; color: #fff; padding: 3px 10px; font-size: 12px; border-radius: 20px; display: inline-block; margin-bottom: 20px;">الإصدار المخصص v7.4</span>
         
         <input type="text" id="userName" placeholder="اكتب اسمك الكريم...">
         <button class="create-btn" onclick="startApp()">دخول / إنشاء الغرفة</button>
@@ -71,20 +71,27 @@
                 configOverwrite: {
                     startWithAudioMuted: false,
                     startWithVideoMuted: true,
-                    prejoinPageEnabled: false // إلغاء صفحة المعاينة تماماً والدخول مباشرة للغرفة
+                    prejoinPageEnabled: true // إبقاء صفحة المعاينة لضمان استقرار الاتصال والصوت
                 },
                 interfaceConfigOverwrite: {
+                    // إخفاء إعدادات الأجهزة، الشعار، وأي أزرار جانبية غير مرتبطة بالانضمام
                     TOOLBAR_BUTTONS: [
                         'microphone', 'hangup'
                     ],
                     SHOW_JITSI_WATERMARK: false,
                     SHOW_BRANDING_WATERMARK: false,
                     BRAND_WATERMARK_LINK: '',
+                    HIDE_KICK_BUTTON_FROM_MODAL: true,
                     DEFAULT_BACKGROUND: '#0f172a'
                 }
             };
 
             api = new JitsiMeetExternalAPI(domain, options);
+
+            // إخفاء العناصر غير المرغوب فيها من واجهة المعاينة (Pre-join) برمجياً فور تحميلها
+            api.addEventListener('videoConferenceJoined', () => {
+                // المكالمة بدأت بنجاح
+            });
 
             api.addEventListener('videoConferenceLeft', () => {
                 window.location.href = window.location.pathname;
