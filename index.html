@@ -14,15 +14,21 @@
         
         /* واجهة الاتصال */
         #callScreen { display: none; width: 100vw; height: 100vh; position: fixed; top: 0; left: 0; background: #0f172a; flex-direction: column; justify-content: center; align-items: center; z-index: 999; }
-        .call-box { background: #1e293b; padding: 30px; border-radius: 15px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.7); width: 350px; }
-        .status { font-size: 20px; margin-bottom: 15px; color: #4ade80; font-weight: bold; }
-        .control-btn { padding: 12px 25px; font-size: 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin: 5px; width: 100%; }
-        .mute-btn { background: #eab308; color: #000; margin-bottom: 10px; }
+        .call-box { background: #1e293b; padding: 25px; border-radius: 15px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.7); width: 360px; max-height: 90vh; overflow-y: auto; }
+        .status { font-size: 18px; margin-bottom: 10px; color: #4ade80; font-weight: bold; }
+        .control-btn { padding: 10px 20px; font-size: 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin: 5px; width: 100%; }
+        .mute-btn { background: #eab308; color: #000; }
         .hangup-btn { background: #ef4444; color: #fff; }
         
         /* صندوق جيتسي الخفي */
         #jitsiContainer { position: absolute; width: 1px; height: 1px; top: -9999px; left: -9999px; opacity: 0; visibility: hidden; pointer-events: none; }
-        .link-box { background: #0f172a; padding: 10px; border-radius: 6px; color: #38bdf8; font-size: 13px; margin-bottom: 15px; word-break: break-all; border: 1px dashed #475569; }
+        .link-box { background: #0f172a; padding: 8px; border-radius: 6px; color: #38bdf8; font-size: 12px; margin-bottom: 15px; word-break: break-all; border: 1px dashed #475569; }
+        
+        /* قائمة الأعضاء المتصلين */
+        .members-container { background: #0f172a; border-radius: 8px; padding: 10px; margin-bottom: 15px; text-align: right; border: 1px solid #334155; max-height: 120px; overflow-y: auto; }
+        .members-title { font-size: 13px; color: #94a3b8; margin-bottom: 5px; font-weight: bold; border-bottom: 1px solid #1e293b; padding-bottom: 4px; }
+        .member-item { font-size: 14px; color: #f1f5f9; padding: 4px 0; display: flex; align-items: center; }
+        .member-item::before { content: "🟢"; font-size: 10px; margin-left: 8px; }
     </style>
 </head>
 <body>
@@ -30,7 +36,7 @@
     <!-- واجهة الدخول -->
     <div class="card" id="loginBox">
         <h2>نظام الاتصال المخصص</h2>
-        <span style="background: #8b5cf6; color: #fff; padding: 3px 10px; font-size: 12px; border-radius: 20px; display: inline-block; margin-bottom: 20px;">الإصدار الأنيق v5.0</span>
+        <span style="background: #8b5cf6; color: #fff; padding: 3px 10px; font-size: 12px; border-radius: 20px; display: inline-block; margin-bottom: 20px;">الإصدار الاحترافي v6.0</span>
         
         <input type="text" id="userName" placeholder="اكتب اسمك الكريم...">
         <button class="create-btn" onclick="startApp()">دخول / إنشاء الغرفة</button>
@@ -42,8 +48,16 @@
             <h2>غرفة الاتصال النشطة</h2>
             <div class="status" id="callStatus">متصل بالصوت...</div>
             
-            <p style="color: #94a3b8; font-size: 12px; margin-bottom: 5px;">رابط الغرفة (انسخه وادزه لصديقك):</p>
+            <p style="color: #94a3b8; font-size: 11px; margin-bottom: 3px;">رابط الغرفة (انسخه وادزه لصديقك):</p>
             <div class="link-box" id="roomLinkView">جارٍ توليد الرابط...</div>
+            
+            <!-- قائمة الأعضاء المتصلين -->
+            <div class="members-container">
+                <div class="members-title">الأعضاء المتصلين حالياً:</div>
+                <div id="membersList">
+                    <div class="member-item">جاري التحميل...</div>
+                </div>
+            </div>
             
             <button class="control-btn mute-btn" onclick="toggleMute()">كتم / إلغاء الكتم</button>
             <button class="control-btn hangup-btn" onclick="endCall()">مغادرة المكالمة</button>
@@ -54,20 +68,19 @@
     <script src="https://meet.jit.si/external_api.js"></script>
     <script>
         let api = null;
+        let myName = "";
 
-        // التحقق التلقائي لو الشخص دخل عن طريق رابط مشاركة جاهز
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('room')) {
-                // إذا اكو رابط جاهز، نخفي زر الإنشاء ونطلب الاسم فقط لتسريع الدخول
                 document.querySelector('.card h2').innerText = "انضمام إلى غرفة";
                 document.querySelector('.create-btn').innerText = "انضمام مباشر";
             }
         };
 
         function startApp() {
-            let name = document.getElementById('userName').value.trim();
-            if (!name) {
+            myName = document.getElementById('userName').value.trim();
+            if (!myName) {
                 alert("يرجى كتابة اسمك أولاً!");
                 return;
             }
@@ -75,17 +88,13 @@
             const urlParams = new URLSearchParams(window.location.search);
             let roomCode = urlParams.get('room');
 
-            // إذا ماكو غرفة بالرابط، ننشئ وحدة جديدة ونحدث شريط العنوان (URL) تلقائياً
             if (!roomCode) {
                 roomCode = Math.floor(100000 + Math.random() * 900000).toString();
                 const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?room=' + roomCode;
                 window.history.pushState({path: newUrl}, '', newUrl);
             }
 
-            // عرض رابط الغرفة الحالي بالصندوق حتى ينسخه بكل سهولة
             document.getElementById('roomLinkView').innerText = window.location.href;
-
-            // إخفاء صفحة الدخول وتشغيل المكالمة
             document.getElementById('loginBox').style.display = 'none';
             document.getElementById('callScreen').style.display = 'flex';
 
@@ -95,7 +104,7 @@
                 width: "100%",
                 height: "100%",
                 parentNode: document.querySelector('#jitsiContainer'),
-                userInfo: { displayName: name },
+                userInfo: { displayName: myName },
                 configOverwrite: {
                     startWithAudioMuted: false,
                     startWithVideoMuted: true
@@ -109,6 +118,29 @@
             };
 
             api = new JitsiMeetExternalAPI(domain, options);
+
+            // تتبع دخول وخروج الأعضاء وتحديث القائمة تلقائياً
+            api.addEventListeners({
+                participantJoined: updateMembersList,
+                participantLeft: updateMembersList,
+                videoConferenceJoined: updateMembersList
+            });
+        }
+
+        function updateMembersList() {
+            if (!api) return;
+            
+            api.getParticipantsInfo().then(participants => {
+                let membersListHTML = `<div class="member-item">${myName} (أنت)</div>`;
+                
+                participants.forEach(p => {
+                    if (p.displayName && p.displayName !== myName) {
+                        membersListHTML += `<div class="member-item">${p.displayName}</div>`;
+                    }
+                });
+
+                document.getElementById('membersList').innerHTML = membersListHTML;
+            });
         }
 
         function toggleMute() {
@@ -121,7 +153,6 @@
             if (api) {
                 api.dispose();
             }
-            // مسح الرابط وإعادة التوجيه للبداية
             window.location.href = window.location.pathname;
         }
     </script>
