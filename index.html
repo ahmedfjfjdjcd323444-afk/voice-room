@@ -20,7 +20,7 @@
 
     <div class="card" id="loginBox">
         <h2>نظام الاتصال المخصص</h2>
-        <span style="background: #8b5cf6; color: #fff; padding: 3px 10px; font-size: 12px; border-radius: 20px; display: inline-block; margin-bottom: 20px;">الإصدار المحترف v7.2</span>
+        <span style="background: #8b5cf6; color: #fff; padding: 3px 10px; font-size: 12px; border-radius: 20px; display: inline-block; margin-bottom: 20px;">الإصدار الخارق v7.3</span>
         
         <input type="text" id="userName" placeholder="اكتب اسمك الكريم...">
         <button class="create-btn" onclick="startApp()">دخول / إنشاء الغرفة</button>
@@ -70,13 +70,13 @@
                 userInfo: { displayName: name },
                 configOverwrite: {
                     startWithAudioMuted: false,
-                    startWithVideoMuted: true
+                    startWithVideoMuted: true,
+                    prejoinPageEnabled: false // إلغاء صفحة المعاينة تماماً والدخول مباشرة للغرفة
                 },
                 interfaceConfigOverwrite: {
                     TOOLBAR_BUTTONS: [
                         'microphone', 'hangup'
                     ],
-                    // إخفاء كل شعارات العلامة التجارية والشعارات الخاصة بالمنصة تماماً
                     SHOW_JITSI_WATERMARK: false,
                     SHOW_BRANDING_WATERMARK: false,
                     BRAND_WATERMARK_LINK: '',
