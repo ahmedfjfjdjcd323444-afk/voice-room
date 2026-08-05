@@ -61,7 +61,6 @@
                 height: "100%",
                 parentNode: document.querySelector('#jitsi-container'),
                 
-                // إعدادات الواجهة لإخفاء أي شعارات أو روابط
                 interfaceConfigOverwrite: {
                     SHOW_JITSI_WATERMARK: false,
                     SHOW_WATERMARK_FOR_GUESTS: false,
@@ -76,24 +75,30 @@
                     disableInviteFunctions: true,
                     startWithAudioMuted: false,
                     startWithVideoMuted: true,
-                    
-                    // الأوامر الجديدة لتخطي صفحة التحذير وشاشة "الانضمام للمكالمة" الابتدائية
                     prejoinConfig: {
-                        enabled: false // إلغاء شاشة التحضير والتحذير نهائياً والدخول للمكالمة فورا
+                        enabled: false
                     },
-                    enableInsecureRoomNameWarning: false // إيقاف تحذير اسم الغرفة غير الآمن
+                    enableInsecureRoomNameWarning: false
                 }
             };
 
             const api = new JitsiMeetExternalAPI(domain, options);
 
-            // تمرير اسم المستخدم تلقائياً بدون ما يطلبه النظام
             api.executeCommand('displayName', 'أحمد');
 
-            // مراقب لحذف أي شعار أو عنصر ترويجي قد يحاول الظهور لاحقاً
+            // مراقب شامل لحذف الشعار وأي روابط تابعة لـ جيتسي فور توليدها
             const observer = new MutationObserver((mutations) => {
-                const watermarks = document.querySelectorAll('.watermark, .jitsi-icon, a[href*="jitsi"], img[src*="jitsi"]');
-                watermarks.forEach(el => el.remove());
+                // البحث عن كل العناصر التي تحتوي على شعار، روابط، أو نصوص ترويجية خاصة بهم
+                const elementsToRemove = document.querySelectorAll(`
+                    .watermark, 
+                    .jitsi-icon, 
+                    a[href*="jitsi"], 
+                    img[src*="jitsi"],
+                    [aria-label*="Jitsi Meet Logo"],
+                    [title*="Jitsi Meet"]
+                `);
+                
+                elementsToRemove.forEach(el => el.remove());
             });
 
             observer.observe(document.body, {
