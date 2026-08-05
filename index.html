@@ -41,12 +41,10 @@
     <!-- استدعاء مكتبة جيتسي الرسمية -->
     <script src="https://meet.jit.si/external_api.js"></script>
     <script>
-        // قراءة اسم الغرفة من الرابط (مثلاً: index.html?room=AhmedRoom)
         const urlParams = new URLSearchParams(window.location.search);
         const roomName = urlParams.get('room');
 
         if (!roomName) {
-            // إذا ماكو غرفة بالرابط، نعرض رسالة خطأ 404
             document.body.innerHTML = `
                 <div id="error-container">
                     <div>
@@ -56,7 +54,6 @@
                 </div>
             `;
         } else {
-            // إعدادات الاتصال وإخفاء الشعارات من الجذور برمجياً
             const domain = "meet.jit.si";
             const options = {
                 roomName: roomName,
@@ -64,7 +61,7 @@
                 height: "100%",
                 parentNode: document.querySelector('#jitsi-container'),
                 
-                // إلغاء تفعيل وتوليد الشعارات والعلامات المائية بالكامل
+                // إعدادات الواجهة لإخفاء أي شعارات أو روابط
                 interfaceConfigOverwrite: {
                     SHOW_JITSI_WATERMARK: false,
                     SHOW_WATERMARK_FOR_GUESTS: false,
@@ -78,11 +75,31 @@
                     brandingDataUrl: "",
                     disableInviteFunctions: true,
                     startWithAudioMuted: false,
-                    startWithVideoMuted: true // يبدأ بالصوت فقط (بدون كاميرا) لتوفير الأداء وجعله للمكالمات الصوتية
+                    startWithVideoMuted: true,
+                    
+                    // الأوامر الجديدة لتخطي صفحة التحذير وشاشة "الانضمام للمكالمة" الابتدائية
+                    prejoinConfig: {
+                        enabled: false // إلغاء شاشة التحضير والتحذير نهائياً والدخول للمكالمة فورا
+                    },
+                    enableInsecureRoomNameWarning: false // إيقاف تحذير اسم الغرفة غير الآمن
                 }
             };
 
             const api = new JitsiMeetExternalAPI(domain, options);
+
+            // تمرير اسم المستخدم تلقائياً بدون ما يطلبه النظام
+            api.executeCommand('displayName', 'أحمد');
+
+            // مراقب لحذف أي شعار أو عنصر ترويجي قد يحاول الظهور لاحقاً
+            const observer = new MutationObserver((mutations) => {
+                const watermarks = document.querySelectorAll('.watermark, .jitsi-icon, a[href*="jitsi"], img[src*="jitsi"]');
+                watermarks.forEach(el => el.remove());
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
         }
     </script>
 </body>
